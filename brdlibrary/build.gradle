@@ -1,0 +1,33 @@
+apply plugin: 'com.android.library'
+
+group = 'com.github.mrz07'
+
+android {
+    compileSdk 34
+    // buildToolsVersion '34.0.0'
+
+    defaultConfig {
+        minSdkVersion 21
+        versionCode 2
+        versionName "1.1"
+        targetSdk 34
+
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    namespace 'mrz07.com.betterratedialog'
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation("com.google.android.play:review:2.0.1")
+}
