@@ -4,11 +4,14 @@ group = 'com.github.mrz07'
 
 android {
     compileSdkVersion 33
-   // buildToolsVersion '34.0.0'
+    // buildToolsVersion '34.0.0'
 
     defaultConfig {
         minSdkVersion 14
         targetSdkVersion 33
+        versionCode 2
+        versionName "1.1"
+
     }
     buildTypes {
         release {
