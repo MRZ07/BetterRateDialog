@@ -3,14 +3,12 @@ apply plugin: 'com.android.library'
 group = 'com.github.mrz07'
 
 android {
-    compileSdkVersion 30
-    buildToolsVersion '29.0.3'
+    compileSdkVersion 33
+   // buildToolsVersion '34.0.0'
 
     defaultConfig {
         minSdkVersion 14
-        targetSdkVersion 30
-        versionCode 1
-        versionName "1.0"
+        targetSdkVersion 33
     }
     buildTypes {
         release {
@@ -18,10 +16,14 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
 }
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation 'androidx.appcompat:appcompat:1.2.0'
-    implementation 'com.google.android.play:core:1.10.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation("com.google.android.play:review:2.0.1")
 }

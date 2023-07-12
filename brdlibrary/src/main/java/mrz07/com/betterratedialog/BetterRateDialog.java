@@ -2,28 +2,27 @@ package mrz07.com.betterratedialog;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.LayerDrawable;
 import android.net.Uri;
-
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
-
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.RatingBar;
 import android.widget.TextView;
 
+import androidx.appcompat.app.AlertDialog;
+
+import com.google.android.gms.tasks.Task;
+import com.google.android.play.core.review.ReviewException;
 import com.google.android.play.core.review.ReviewInfo;
 import com.google.android.play.core.review.ReviewManager;
 import com.google.android.play.core.review.ReviewManagerFactory;
-import com.google.android.play.core.tasks.OnCompleteListener;
-import com.google.android.play.core.tasks.OnFailureListener;
-import com.google.android.play.core.tasks.Task;
+import com.google.android.play.core.review.model.ReviewErrorCode;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -57,7 +56,7 @@ public class BetterRateDialog implements DialogInterface.OnClickListener {
     private int upperBound = 4;
     private NegativeReviewListener negativeReviewListener;
     private ReviewListener reviewListener;
-    private InAppReviewListener inAppReviewListener;
+    private InAppReviewListener inAppReviewEventListener;
     private int starColor;
     private String positiveButtonText;
     private String negativeButtonText;
@@ -75,6 +74,20 @@ public class BetterRateDialog implements DialogInterface.OnClickListener {
         this.supportEmail = supportEmail;
     }
 
+    public Activity getActivity(Context context) {
+        if (context == null) {
+            return null;
+        } else if (context instanceof ContextWrapper) {
+            if (context instanceof Activity) {
+                return (Activity) context;
+            } else {
+                return getActivity(((ContextWrapper) context).getBaseContext());
+            }
+        }
+
+        return null;
+    }
+
     private void build() {
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         LayoutInflater inflater = LayoutInflater.from(context);
@@ -87,8 +100,8 @@ public class BetterRateDialog implements DialogInterface.OnClickListener {
         ratingBar.setOnRatingBarChangeListener(new RatingBar.OnRatingBarChangeListener() {
             @Override
             public void onRatingChanged(RatingBar ratingBar, float v, boolean b) {
-                    if (googlePlayInAppReviewMode && !isAmazonDevice()) { // Enable only for Google Play.
                 if (isForceMode || v >= upperBound) {
+                    if (googlePlayInAppReviewMode && !isAmazonDevice()) { // Enable only for Google Play devices if googlePlayInAppReviewMode is enabled.
                         launchInAppReview();
                     } else {
                         openStorePage();
@@ -347,43 +360,37 @@ public class BetterRateDialog implements DialogInterface.OnClickListener {
      * <p>
      * Note that, The API does not indicate whether the user reviewed or not, or even whether the review dialog was shown
      *
-     * @param inAppReviewListener
+     * @param inAppReviewEventListener
      * @return
      */
-    public BetterRateDialog setInAppReviewListener(InAppReviewListener inAppReviewListener) {
-        this.inAppReviewListener = inAppReviewListener;
+    public BetterRateDialog setInAppReviewEventListener(InAppReviewListener inAppReviewEventListener) {
+        this.inAppReviewEventListener = inAppReviewEventListener;
         return this;
     }
 
     private void launchInAppReview() {
-        final ReviewManager manager = ReviewManagerFactory.create(context);
+        ReviewManager manager = ReviewManagerFactory.create(context);
         Task<ReviewInfo> request = manager.requestReviewFlow();
-        request.addOnCompleteListener(new OnCompleteListener<ReviewInfo>() {
-            @Override
-            public void onComplete(@NonNull Task<ReviewInfo> task) {
-                if (task.isSuccessful()) {
-                    if (context instanceof Activity) {
-                        Task<Void> flow = manager.launchReviewFlow(((Activity) context), task.getResult());
-                        flow.addOnCompleteListener(new OnCompleteListener<Void>() {
-                            @Override
-                            public void onComplete(@NonNull Task<Void> task) {
-                                if (inAppReviewListener != null) {
-                                    inAppReviewListener.onInAppReview();
-                                }
-                            }
-                        });
-                        flow.addOnFailureListener(new OnFailureListener() {
-                            @Override
-                            public void onFailure(Exception e) {
-                                openStorePage();
-                            }
-                        });
-                    } else {
-                        openStorePage();
+        request.addOnCompleteListener(task -> {
+            if (task.isSuccessful()) {
+                // We can get the ReviewInfo object
+                ReviewInfo reviewInfo = task.getResult();
+
+                Task<Void> flow = manager.launchReviewFlow(getActivity(context), reviewInfo);
+                flow.addOnCompleteListener(task2 -> {
+                    // The flow has finished. The API does not indicate whether the user
+                    // reviewed or not, or even whether the review dialog was shown. Thus, no
+                    // matter the result, we continue our app flow.
+                    if (inAppReviewEventListener != null) {
+                        inAppReviewEventListener.onInAppReviewComplete();
                     }
-                } else {
-                    openStorePage();
-                }
+                });
+
+            } else {
+                // There was some problem, log or handle the error code.
+                @ReviewErrorCode int reviewErrorCode = ((ReviewException) task.getException()).getErrorCode();
+                System.err.println("launchInAppReview -> reviewErrorCode: " + reviewErrorCode);
+                openStorePage();
             }
         });
     }
